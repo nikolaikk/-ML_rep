@@ -1,20 +1,29 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.datasets import make_regression
+from sklearn.datasets import make_regression, make_blobs
 from sklearn.preprocessing import normalize
 import scipy as sp
 
-a = 1
-b = 1
+def sigmoid(xx, a, b):
+    return 1./(1+np.exp(-(b+a*xx[:,0]+xx[:,1])))
 
-def error_f(xx,yy, a=a, b=b):
-    return np.mean(((a*xx+b)-yy)**2)
+def error_f(xx, yy, a, b):
+    return -np.mean(yy*np.log(sigmoid(xx,a,b)) + \
+                    (1-yy)*np.log(1-sigmoid(xx,a,b)))
 
-def dif_a_error_f(xx,yy, a=a, b=b):
-    return np.mean(2*(a*xx+b-yy)*xx)
-
-def dif_b_error_f(xx,yy, a=a, b=b):
-    return np.mean(2*(a*xx+b-yy))
+def dif_a_error_f(xx,yy, a, b):
+    
+    sigmoid_da = sigmoid(xx,a,b)*(1-sigmoid(xx,a,b))*xx[:,0]
+    
+    return -np.mean(yy*1/(sigmoid(xx,a,b))*sigmoid_da + \
+                    (1-yy)*1/(1-sigmoid(xx,a,b))*(-sigmoid_da))
+    
+def dif_b_error_f(xx,yy, a, b):
+    
+    sigmoid_db = sigmoid(xx,a,b)*(1-sigmoid(xx,a,b))
+    
+    return -np.mean(yy*1/(sigmoid(xx,a,b))*sigmoid_db + \
+                    (1-yy)*1/(1-sigmoid(xx,a,b))*(-sigmoid_db))
 
 
 
@@ -70,7 +79,7 @@ def sgd_batch(a,b,xx,yy,rate, batch = 10):
     rate=rate*10
     iterations = 0
     a_s, b_s, err = [], [], []
-    while error_f(xx,yy,a,b)>1.16:
+    while error_f(xx,yy,a,b)>0.16 and iterations < 1000:
         err.append(error_f(xx,yy,a,b))
         a_s.append(a)
         b_s.append(b)
@@ -92,12 +101,17 @@ def sgd_batch(a,b,xx,yy,rate, batch = 10):
 
 def sgd_batch_momentum(a,b,xx,yy,rate, batch = 10):
 
-    rate=rate*10
+    rate=rate
     iterations = 0
     a_s, b_s, err = [], [], []
     beta = 0.95
     V_da, V_db = 0, 0
-    while error_f(xx,yy,a,b)>1.16:
+    
+    print(error_f(xx,yy,a,b))
+ 
+    while error_f(xx,yy,a,b)>1e-8 and iterations < 1000:
+        
+        
         err.append(error_f(xx,yy,a,b))
         a_s.append(a)
         b_s.append(b)
@@ -156,7 +170,7 @@ def RMS_prop(a,b,xx,yy,rate, batch = 10):
 
 def AdaM(a,b,xx,yy,rate, batch = 10):
 
-    rate=rate*10
+    rate=rate*100
     iterations = 0
     a_s, b_s, err = [], [], []
     
@@ -165,7 +179,7 @@ def AdaM(a,b,xx,yy,rate, batch = 10):
     V_da, V_db = 0, 0
     S_da, S_db = 0, 0
     epsilon = 1
-    while error_f(xx,yy,a,b)>1.16:
+    while error_f(xx,yy,a,b)>0.16 and iterations < 1000:
         err.append(error_f(xx,yy,a,b))
         a_s.append(a)
         b_s.append(b)
@@ -203,21 +217,30 @@ def AdaM(a,b,xx,yy,rate, batch = 10):
 
 if __name__=='__main__':
     
-    np.random.seed(100)
-    xx = 2 * np.random.rand(100,1)
-    yy = (4 +3 * xx+np.random.randn(100,1)).ravel()
-    xx = xx.ravel()
-    xx = xx-np.mean(xx)/np.max(xx-np.mean(xx))
-    yy = yy-np.mean(yy)/np.max(yy-np.mean(yy))
+    np.random.seed(101)
+    xx, yy = make_blobs(n_samples=100, n_features=2, centers=2)
     
-    a = -2
-    b = 2
+    xx =  np.random.rand(100,2)
+    from sklearn.preprocessing import StandardScaler
+    xx = StandardScaler().fit_transform(xx)
+
+    model_a = -1
+    model_b = 0  
+    yy = np.empty(len(xx))
+    for i in range(len(xx)):
+        if xx[i,0]*model_a + model_b < xx[i,1]:
+            yy[i] = 0
+        else:
+            yy[i] = 1
+    
+    a = 4
+    b = 3
     rate = 0.001
     
-    #theta1, theta2, err = sgd_batch(a,b,xx,yy,rate)
-    theta1, theta2, err = sgd_batch_momentum(a,b,xx,yy,rate)
-    theta1, theta2, err = RMS_prop(a,b,xx,yy,rate)
-    theta1, theta2, err = AdaM(a,b,xx,yy,rate)
+    theta1, theta2, err = sgd_batch(a,b,xx,yy,rate)
+#    theta1, theta2, err = sgd_batch_momentum(a,b,xx,yy,rate)
+#    theta1, theta2, err = RMS_prop(a,b,xx,yy,rate)
+#    theta1, theta2, err = AdaM(a,b,xx,yy,rate)
     
     
     
@@ -233,6 +256,8 @@ if __name__=='__main__':
     aa, bb  = np.meshgrid(a_s,b_s, sparse=False, indexing='ij')
     fig, ax = plt.subplots(2,1, figsize=(9,15))
     im = ax[1].contour(aa,bb,res,50)
+    ax[1].set_xlabel("a")
+    ax[1].set_ylabel("b")
     #fig.colorbar(im, cax=ax[1])
     
     for i in range(len(theta1)-1):
@@ -240,11 +265,11 @@ if __name__=='__main__':
                     arrowprops={'arrowstyle': '->'}, va='center')
     
     
-    ax[0].scatter(xx, yy, c='navy', s=50, marker='*', alpha=0.5, label='Real Data')
-    ax[0].plot(xx, xx*theta1[-1]+theta2[-1],c='darkorange', linewidth=7, label='Gradient Descent')
+    ax[0].scatter(xx[:,0], xx[:,1], c=yy, s=50, marker='*', alpha=0.5, label='Real Data')
     
-    slope1, intercept1, _,_,_ = sp.stats.linregress(xx,yy)
-    ax[0].plot(xx, xx*slope1+intercept1, c='black', linewidth=1, label='Least Squares')
+    x_boundary = np.linspace(np.min(xx[:,0]),np.max(xx[:,0]),100)
+    ax[0].plot(x_boundary, x_boundary*theta1[-1]+theta2[-1],c='darkorange', linewidth=3, label='Gradient Descent')
+    ax[0].plot(x_boundary, x_boundary*model_a+model_b,c='grey', linewidth=7, label='True Boundary')
     ax[0].legend(fontsize=15);
     
     plt.show()
