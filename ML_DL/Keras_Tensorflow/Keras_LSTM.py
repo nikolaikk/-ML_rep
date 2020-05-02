@@ -43,20 +43,20 @@ from tensorflow.keras.layers import Dropout
 regressor = Sequential()
 
 # Adding the first LSTM layer and some Dropout regularisation
-regressor.add(LSTM(units = 50, return_sequences = True, input_shape = (X_train.shape[1], 1)))
+regressor.add(LSTM(units = 4, return_sequences = True, input_shape = (X_train.shape[1], 1)))
 regressor.add(Dropout(0.2))
 
 ## Adding a second LSTM layer and some Dropout regularisation
-regressor.add(LSTM(units = 50, return_sequences = True))
-regressor.add(Dropout(0.2))
-#
-## Adding a third LSTM layer and some Dropout regularisation
-regressor.add(LSTM(units = 50, return_sequences = True))
+regressor.add(LSTM(units = 2))
 regressor.add(Dropout(0.2))
 
-# Adding a fourth LSTM layer and some Dropout regularisation
-regressor.add(LSTM(units = 50))
-regressor.add(Dropout(0.2))
+# Adding a third LSTM layer and some Dropout regularisation
+# regressor.add(LSTM(units = 250))
+# regressor.add(Dropout(0.2))
+
+# # Adding a fourth LSTM layer and some Dropout regularisation
+# regressor.add(LSTM(units = 500))
+# regressor.add(Dropout(0.2))
 
 # Adding the output layer
 regressor.add(Dense(units = 1))
@@ -65,10 +65,10 @@ regressor.add(Dense(units = 1))
 regressor.compile(optimizer = 'adam', loss = 'mean_squared_error')
 
 # Fitting the RNN to the Training set
-regressor.fit(X_train, y_train, epochs = 10, batch_size = 32)
+regressor.fit(X_train, y_train, epochs = 30, batch_size = 32)
 
 pred = []
-for i in range(500):
+for i in range(200):
     if i == 0:
         X_test = X_train[-1,:,0].reshape(1,-1,1)
     else:

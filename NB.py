@@ -9,24 +9,24 @@ plt.style.use("ggplot")
 
 
 ## PART TWO ##
-df = pd.read_csv("https://www.python-course.eu/data/person_data.txt", header=None, 
-                 names = ["Name","SecondN","Height","Weight","Gender"], sep = " ")
-
-num_b = int((np.max(df["Height"])- np.min(df["Height"]))/5)
-
-#plt.hist(df[df["Gender"]=="male"]["Height"],bins = num_b, label="male", alpha = 0.5,rwidth = 0.75)
-#plt.hist(df[df["Gender"]=="female"]["Height"],bins = num_b, label="female", alpha = 0.5,rwidth=0.75)
-#plt.legend()
-#plt.show()
-
-#plt.figure()
-#y, _ = pd.factorize(df["Gender"])
-#plt.scatter(df["Height"],df["Weight"],c=y)
-
-
-train = df.iloc[:-20,:]
-test = df.iloc[-20:,:]
-y, _ = pd.factorize(train["Gender"])
+#df = pd.read_csv("https://www.python-course.eu/data/person_data.txt", header=None, 
+#                 names = ["Name","SecondN","Height","Weight","Gender"], sep = " ")
+#
+#num_b = int((np.max(df["Height"])- np.min(df["Height"]))/5)
+#
+##plt.hist(df[df["Gender"]=="male"]["Height"],bins = num_b, label="male", alpha = 0.5,rwidth = 0.75)
+##plt.hist(df[df["Gender"]=="female"]["Height"],bins = num_b, label="female", alpha = 0.5,rwidth=0.75)
+##plt.legend()
+##plt.show()
+#
+##plt.figure()
+##y, _ = pd.factorize(df["Gender"])
+##plt.scatter(df["Height"],df["Weight"],c=y)
+#
+#
+#train = df.iloc[:-20,:]
+#test = df.iloc[-20:,:]
+#y, _ = pd.factorize(train["Gender"])
 #plt.scatter(train["Height"], train["Weight"], c=y)
 
 def posterior_max(X, data = train):
