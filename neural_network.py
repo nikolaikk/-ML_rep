@@ -7,13 +7,18 @@ import matplotlib
 
 
 class NeuralNet():
-    def __init__(self, input_size, output_size, layers, activation='relu'):
+    def __init__(self, input_size, output_size, layers):
         self.input_size = input_size
-        self.output_size = output_size
-        self.layers = layers
+        self.output_size = list(output_size.keys())[0]
+        self.layers = layers.keys()
         self.weights = self.create_weight_bias()
         self.losses = []
-        self.activation = activation
+        self.activations = [*layers.values(),
+                            list(output_size.values())[0]]
+
+        # Check if the usded activation function is supported
+        assert all(activation.lower() in ["relu","sigma","softmax"] for activation in 
+                    self.activations), "Activation function can be only ReLu, Sigma or SoftMax"
         
     def create_weight_bias(self, random=True, name='', factor=1):
         # np.random.seed(42)
@@ -85,21 +90,16 @@ class NeuralNet():
     
     def forward(self, X):
         
-        self.data = X
-        if self.activation.lower() == 'relu':
-            activation_fn = self.relu
-        if self.activation.lower() == 'sigma':
-            activation_fn = self.sigma
-            
         z_s, a_s = [], [X]
+        self.data = X
         
         Ws = list(net.weights.values())[::2]
         bs = list(net.weights.values())[1::2]
         for i, (W, b) in enumerate(zip(Ws,bs)):
+            
+            # Pick up right activation function
+            activation_fn = eval("self."+self.activations[i])
 
-            if i==len(Ws)-1:
-                activation_fn = self.softmax
- 
             z = (X.dot(W).T + b).T
             z_s.append(z)
 
@@ -120,25 +120,22 @@ class NeuralNet():
         self.alpha = alpha
 
         y_pred = self.forward(self.data)
-        
+
         for i in reversed(range(len(self.layers)+1)):
+
+            activation_fn_prime = eval("self."+self.activations[i]+"_prime")
+            # print("self."+self.activations[i]+"_prime")
             # Back propagate gradient of loss function
             if i == len(self.layers):
                 dEda = self.loss_fn_prime(self.y, y_pred)
-                dadz = self.softmax_prime(self.z_s[i])
+                dadz = activation_fn_prime(self.z_s[i])
                 delta = dEda * dadz
 
 
             else:
                 # W = self.weights[list(self.weights.keys())[i*2]]
                 W = self.weights[list(self.weights.keys())[2*i+2]]
-                
-                if self.activation == 'relu':
-                    activation_fn = self.relu_prime
-                if self.activation == 'sigma':
-                    activation_fn = self.sigma_prime
-                    
-                dadz = activation_fn(self.z_s[i].copy())
+                dadz = activation_fn_prime(self.z_s[i].copy())
                 delta = np.dot(W, delta.T).T*dadz
 
             dzdw = self.a_s[i]
@@ -165,10 +162,11 @@ class NeuralNet():
         return self.forward(X)
     
     
-def plot_with_contours(X, y_pred, model):
-    
+def plot_with_contours(X, y_s, model, iteration, accuracy,
+                        loss, points=100, save=False):
+    y_pred = y_s[0] 
+    y_real = y_s[1] 
     # plot countour
-    points = 300
     x_ = np.linspace(X[:,0].min()-1,X[:,0].max()+1,points)
     y_ = np.linspace(X[:,1].min()-1,X[:,1].max()+1,points)
     
@@ -182,14 +180,24 @@ def plot_with_contours(X, y_pred, model):
     # z = Z[:,:-1]*(~Z[:,1:])
 
     plt.close()
-    plt.figure()    
+    plt.figure(figsize=(10,8))    
     # cp = plt.contourf(X_, Y_, Z_)
     cp = plt.pcolormesh(X_, Y_, Z_, cmap='coolwarm')
     plt.colorbar(cp)
-    plt.scatter(X[:,0], X[:,1], c=y_pred, edgecolors='red')
-    plt.contour(X_, Y_, Z_, levels=[0.499,0.501],cmap='gist_heat')
-    plt.show()
+    plt.clim(0,1)
+    colors=np.array(["blue","red"])
+    plt.scatter(X[:,0], X[:,1], c=colors[y_pred], edgecolors='white')
+    plt.scatter(X[y_pred!=y_real,0], X[y_pred!=y_real,1], c=colors[y_pred[y_pred!=y_real]],
+                         edgecolors='black')
+    plt.contour(X_, Y_, Z_, levels=[0.5,],cmap='gist_heat',alpha=0.6)
+    plt.title(f"Iteration {iteration}, Loss: {loss:0.6f}, Acc: {accuracy}")
+    # plt.show() 
     
+    if save:
+        plt.savefig(f"../temp/{str(iteration).zfill(4)}.png",transparent=False)
+        print("Saved")
+        plt.close()
+
     return Z_
 
 def OneHotEncoder(y, classes=None):
@@ -201,9 +209,7 @@ def OneHotEncoder(y, classes=None):
         y_encoded[i,val]=1
     return y_encoded
     
-def create_test_weight(input_size=3,layers=[3],output_size=3):  
-    pass 
-    
+
 if __name__=="__main__":
     def normalize_centralize(X):
         X -= X.mean(0)
@@ -214,29 +220,32 @@ if __name__=="__main__":
     X, y = make_blobs(n_samples=100, n_features=2, centers=2, random_state=3)
     y = OneHotEncoder(y,2)
 
-    X, y = make_moons(n_samples=200, noise=0.05, random_state=0)    
+    X, y = make_moons(n_samples=200, noise=0.1, random_state=0)   
+    # plt.scatter(X[:,0],X[:,1],c=y)
     y = OneHotEncoder(y,2)
     
-    # X = np.array([[0.1,0.7],[0.6,0.8],[0.7,0.7]])
-    # y = np.array([[1,0],[0,1],[0,1]])
-
-
     # X = normalize_centralize(X)
-    net = NeuralNet(2,2,[50,3],activation='sigma')
+    net = NeuralNet(input_size=2,
+                    output_size={2:'sigma'},
+                    layers={4:'sigma',5:'sigma'})
     net.create_weight_bias(random=False)
 
-    for i in range(40000):
+    each = 1000
+    for i in range(30000):
         y_pred = net(X)
         # loss = net.loss_fn(y, y_pred, kind='MSE')
         loss = net.loss_fn(y, y_pred, kind='CrossEntropy')
-        net.BackPropagation(alpha=0.02, update_param=True)
-        if i%1000==0:
+        net.BackPropagation(alpha=0.07, update_param=True)
+        if i%each==0:
             y_pred = net.forward(X)
-            
+            accuracy =accuracy_score(y.argmax(1), y_pred.argmax(1))  
             print("Iteration", i, "Loss: ", loss, "   Accuracy: "
-                    ,accuracy_score(y.argmax(1), y_pred.argmax(1))
+                    ,accuracy
                     )
+            # plot_with_contours(X,(y_pred.argmax(1),y.argmax(1)), net,
+            #             int(i/each),accuracy,loss,points=300)
     
-    z_ = plot_with_contours(X,y_pred.argmax(1), net)
+    z_ = plot_with_contours(X,(y_pred.argmax(1),y.argmax(1)), net,
+     1,accuracy,loss,save=False)
 
     
